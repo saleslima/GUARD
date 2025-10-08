@@ -204,6 +204,60 @@ function getShiftAnnotationDisplay(text) {
     return text.substring(0, 5);
 }
 
+// Add Brazilian national and São Paulo state holidays function
+function isHoliday(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    
+    // Fixed national holidays
+    const fixedHolidays = [
+        [0, 1],   // Ano Novo
+        [3, 21],  // Tiradentes
+        [4, 1],   // Dia do Trabalho
+        [8, 7],   // Independência do Brasil
+        [9, 12],  // Nossa Senhora Aparecida
+        [10, 2],  // Finados
+        [10, 15], // Proclamação da República
+        [10, 20], // Dia da Consciência Negra (SP)
+        [11, 25], // Natal
+    ];
+    
+    // Check fixed holidays
+    for (let [m, d] of fixedHolidays) {
+        if (month === m && day === d) return true;
+    }
+    
+    // Easter-based holidays (Carnaval and Corpus Christi)
+    const easter = getEasterDate(year);
+    const carnaval = new Date(easter);
+    carnaval.setDate(easter.getDate() - 47);
+    
+    const corpusChristi = new Date(easter);
+    corpusChristi.setDate(easter.getDate() + 60);
+    
+    if (date.getMonth() === carnaval.getMonth() && date.getDate() === carnaval.getDate()) return true;
+    if (date.getMonth() === corpusChristi.getMonth() && date.getDate() === corpusChristi.getDate()) return true;
+    
+    // São Paulo city anniversary
+    if (month === 0 && day === 25) return true;
+    
+    return false;
+}
+
+function getEasterDate(year) {
+    const f = Math.floor;
+    const G = year % 19;
+    const C = f(year / 100);
+    const H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30;
+    const I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11));
+    const J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7;
+    const L = I - J;
+    const month = 3 + f((L + 40) / 44);
+    const day = L + 28 - 31 * f(month / 4);
+    return new Date(year, month - 1, day);
+}
+
 // Schedule generation function
 function generateSchedule() {
     const scheduleBody = document.getElementById('schedule-body');
@@ -225,6 +279,7 @@ function generateSchedule() {
     for (let day = 1; day <= daysInMonth; day++) {
         const currentDate = new Date(currentYear, currentMonth, day);
         const dayOfWeek = weekDays[currentDate.getDay()];
+        const isWeekendOrHoliday = currentDate.getDay() === 0 || currentDate.getDay() === 6 || isHoliday(currentDate);
         
         const daysDifference = Math.floor((currentDate - baseDate) / (1000 * 60 * 60 * 24));
         const sequenceIndex = ((daysDifference % 14) + 14) % 14;
@@ -245,10 +300,11 @@ function generateSchedule() {
         
         const dayClass = currentTeam && dayShift === currentTeam ? 'shift-cell highlighted' : 'shift-cell';
         const nightClass = currentTeam && nightShift === currentTeam ? 'shift-cell highlighted' : 'shift-cell';
+        const dayCellClass = isWeekendOrHoliday ? 'cell day-cell weekend-holiday' : 'cell day-cell';
         
         row.innerHTML = `
             <div class="cell date-cell">${day}</div>
-            <div class="cell day-cell">
+            <div class="${dayCellClass}">
                 ${dayOfWeek}
                 ${annotation ? `<span class="annotation-text">${annotation.substring(0, 10)}${annotation.length > 10 ? '...' : ''}</span>` : ''}
             </div>
